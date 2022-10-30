@@ -8,4 +8,4 @@
 #SBATCH --error=%j.err
 
 module load lammps
-srun lmp < in.eszx
+srun lmp < in.sszx
