@@ -1,0 +1,77 @@
+variable 	pot string WRe_Setyawan.eam.alloy
+# ---dimensions
+units 		metal
+boundary 	p p p
+atom_style 	atomic
+
+read_data 	dis.data
+
+# ---potential
+pair_style 	eam/alloy
+pair_coeff  	* * ${pot} W 
+
+neighbor	2.0 bin
+neigh_modify 	every 1 delay 5 check yes
+
+# ---define border
+variable 	ylen equal ly
+variable 	ylh  equal 0.5*${ylen}-21.906719190583
+
+# ---define group
+region 		upper block INF INF ${ylh} INF INF INF units box
+group 		upper region upper
+region 		lower block INF INF INF -${ylh} INF INF units box
+group 		lower region lower
+group 		boundary union lower upper
+group 		mobile subtract all boundary
+fix 		freeze boundary setforce 0 0 0
+
+# ---define compute
+compute 	pea all pe/atom
+compute 	ps mobile stress/atom NULL
+compute 	p1 mobile reduce sum c_ps[1]
+compute 	p2 mobile reduce sum c_ps[2]
+compute 	p3 mobile reduce sum c_ps[3]
+compute 	p4 mobile reduce sum c_ps[4]
+compute 	p5 mobile reduce sum c_ps[5]
+compute 	p6 mobile reduce sum c_ps[6]
+
+variable 	area equal lx*lz
+variable 	vm equal "v_area*(ly-21.906719190583*2.0)"
+variable 	p11 equal "c_p1/v_vm/10"
+variable 	p22 equal "c_p2/v_vm/10"
+variable 	p33 equal "c_p3/v_vm/10"
+variable 	p12 equal "c_p4/v_vm/10"
+variable 	p13 equal "c_p5/v_vm/10"
+variable 	p23 equal "c_p6/v_vm/10"
+  
+thermo 		20
+reset_timestep	0
+
+# ---shear
+variable        dis equal 0.004
+variable        i loop 40
+label       	loop1
+	
+displace_atoms  upper move  ${dis} 0 0 units box 
+displace_atoms 	mobile ramp x 0 ${dis} y  -${ylh} ${ylh} units box
+fix 		0 boundary setforce 0 0 0
+reset_timestep 	0
+minimize	1.0e-15  1.0e-15 10000 10000							 									
+variable 	strain equal $i*${dis}/(2.0*${ylh})  # strain 
+variable 	exy equal ${strain}                   # strain
+fix		output all print 1 "$i ${exy}  ${p12}" append syxb.dat screen no
+run		0	
+unfix		output
+
+dump 		1 all custom 1 xyz/syx${i}.xyz id type x y z c_pea 
+dump_modify 	1 sort id
+run 		0
+undump 		1
+
+unfix 		0
+
+next            i
+jump            in.syxb loop1
+
+

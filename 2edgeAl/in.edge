@@ -1,0 +1,114 @@
+#-------------------------------------------------------------------
+# This script will compute the energies of the following:
+# (1) Edge
+# (2) Edge ref0
+# (3) Edge ref1
+#-------------------------------------------------------------------
+
+variable	E equal pe
+variable	la equal 4.04527
+variable	vea equal ${la}*${la}*${la}/4 #volume per atom
+variable        sxx atom c_stress[1]/${vea}/10000
+variable        syy atom c_stress[2]/${vea}/10000
+variable        szz atom c_stress[3]/${vea}/10000
+variable        sxy atom c_stress[4]/${vea}/10000
+variable        sxz atom c_stress[5]/${vea}/10000
+variable        syz atom c_stress[6]/${vea}/10000
+
+#-------------------------------------------------------------------
+#	(1) Edge
+#-------------------------------------------------------------------
+
+units           metal
+boundary        p p p
+atom_style      atomic
+timestep        0.001
+
+read_data       edgeAl.pos
+
+pair_style      eam/alloy
+pair_coeff      * * ../AlLEA.eam.alloy Al
+
+compute		pe all pe/atom
+compute		stress all stress/atom NULL
+
+thermo		20
+min_style	cg
+minimize	1.0e-12 1.0e-12 10000 10000
+
+dump		1 all custom 1 dump.edge mass type xs ys zs c_pe &
+				v_sxx v_syy v_szz v_sxy v_sxz v_syz
+run				0
+undump		1
+variable	Eedge equal $E
+write_data	edgeAl.data
+
+#-------------------------------------------------------------------
+#	(2) Edge ref0
+#-------------------------------------------------------------------
+
+clear
+
+units           metal
+boundary        p p p
+atom_style      atomic
+timestep        0.001
+
+read_data       ref0.pos
+
+pair_style      eam/alloy
+pair_coeff      * * ../AlLEA.eam.alloy Al
+
+compute		pe all pe/atom
+compute		stress all stress/atom NULL
+
+thermo		20
+min_style	cg
+minimize	1.0e-12 1.0e-12 10000 10000
+
+dump		1 all custom 1 dump.ref0 mass type xs ys zs c_pe &
+				v_sxx v_syy v_szz v_sxy v_sxz v_syz
+run		0
+undump		1
+variable	Eedgeref0 equal $E
+
+#-------------------------------------------------------------------
+#	(3) Edge ref1
+#-------------------------------------------------------------------
+
+clear
+
+units           metal
+boundary        p p p
+atom_style      atomic
+timestep        0.001
+
+read_data       ref1.pos
+
+pair_style      eam/alloy
+pair_coeff      * * ../AlLEA.eam.alloy Al
+
+compute		pe all pe/atom
+compute		stress all stress/atom NULL
+
+thermo		20
+min_style	cg
+minimize	1.0e-12 1.0e-12 10000 10000
+
+dump		1 all custom 1 dump.ref1 mass type xs ys zs c_pe &
+				v_sxx v_syy v_szz v_sxy v_sxz v_syz
+run		0
+undump		1
+variable	Eedgeref1 equal $E
+
+
+print		" "
+print		"---------------------------------------------------------------"
+print		" Edge Dislocation in Al"
+print       	" [1] Edge                       Energy(eV) = ${Eedge}"
+print       	" [2] Edge ref0                  Energy(eV) = ${Eedgeref0}"
+print       	" [3] Edge ref1                  Energy(eV) = ${Eedgeref1}"
+print		"---------------------------------------------------------------"
+print		" "
+
+

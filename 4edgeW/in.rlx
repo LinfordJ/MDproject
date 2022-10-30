@@ -1,0 +1,50 @@
+# ===================================================
+#                    Relax the initial model for edge: by deleation
+# ===================================================
+variable 	pot string WRe_Setyawan.eam.alloy
+variable 	v0 equal 3.143*3.143*3.143*0.5
+# ---dimensions
+units 		metal
+boundary 	p p p
+atom_style 	atomic
+
+read_data 	del.data
+
+# ---potential
+pair_style 	eam/alloy
+pair_coeff  	* * ${pot} W  
+neighbor	 2.0 bin
+neigh_modify 	every 1 delay 5 check yes
+
+# ---define border -----
+variable 	ylen equal ly
+variable 	ylh  equal 0.5*${ylen}-21.906719190583
+ 
+# ---define group
+region 		mid block INF INF -${ylh}  ${ylh} INF INF units box
+group 		mid region mid
+group 		boundary subtract all mid 
+fix 		freeze boundary setforce 0 0 0
+
+# ---properties ----- 
+compute  	ps all stress/atom NULL
+compute  	pea all pe/atom
+variable 	p11 atom "c_ps[1]/v_v0/10000"  # GPa
+variable 	p22 atom "c_ps[2]/v_v0/10000"
+variable 	p33 atom "c_ps[3]/v_v0/10000"
+variable 	p12 atom "c_ps[4]/v_v0/10000"
+variable 	p13 atom "c_ps[5]/v_v0/10000"
+variable 	p23 atom "c_ps[6]/v_v0/10000"
+variable 	HP atom "-(v_p11+v_p22+v_p33)/3"
+
+# --dump -----
+thermo 		100
+
+dump 		1 all custom 100 rlx*.xyz id type x y z c_pea v_HP v_p11 v_p22 v_p33 v_p12 v_p13 v_p23 
+dump_modify 	1 sort id 
+run		 0
+#fix 1 all box/relax x 0 z 0
+minimize 	1e-15 1e-15 100000 100000
+undump 		1
+write_data 	dis.data
+

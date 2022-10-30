@@ -1,0 +1,114 @@
+units			metal
+boundary		p p f
+atom_style		atomic
+
+read_data		edgeAl.data
+
+pair_style      	eam/alloy
+pair_coeff      	* * ../AlLEA.eam.alloy Al
+
+variable		E equal pe
+run			0
+compute			pe all pe/atom
+
+#up and bot boundary: fix bot
+#apply x-displacement to up, to apply simple shear strain incrementally
+variable		zbot equal -110
+variable		zup  equal 110
+variable		zmid equal ${zup}-${zbot}
+region			up  block INF INF INF INF ${zup} INF  units box
+region			bot block INF INF INF INF INF ${zbot} units box
+group 			up region up
+group           	bot region bot
+group			fixb union up bot
+group           	mid subtract all fixb
+
+variable            	N equal atoms
+variable	    	step equal step
+variable            	temp equal temp
+variable            	vol equal vol
+variable            	pe equal pe
+variable		Nm equal 29140 # atoms in the middle region 
+variable            	etotal equal etotal
+
+compute			csp all centro/atom fcc
+compute			pea all pe/atom
+compute             	mppe mid pe/atom
+
+compute			apem mid reduce sum c_pea #potential energy in the middle region
+thermo_style		custom step temp pe vol v_N v_Nm c_apem
+run			0
+
+#variables for stress calculations
+compute                 ps all stress/atom NULL
+compute                 p11 mid reduce  sum  c_ps[1]
+compute                 p22 mid reduce  sum  c_ps[2]
+compute                 p33 mid reduce  sum  c_ps[3]
+compute                 p12 mid reduce  sum  c_ps[4]
+compute                 p13 mid reduce  sum  c_ps[5]
+compute                 p23 mid reduce  sum  c_ps[6]
+
+timestep	    	0.002
+
+thermo			50
+thermo_style		custom step temp pe vol v_N etotal c_apem vol xy yz pxx pyy pzz pxy pyz pxz c_p13 
+thermo_modify       	format float %f
+
+#initial minimization, equilibration
+fix			2 fixb setforce NULL NULL 0.0
+fix 	            	3 all nve
+dump			1 all custom 50 rs*.xyz id type x y z c_pea c_csp
+dump_modify		1 sort id
+minimize		1e-15 1e-15 1000 1000
+
+run			0
+
+write_restart           rst.edge
+
+dump			4 mid custom 1 xyz/me0.xyz id type x y z c_pea c_csp c_ps[1] c_ps[2] c_ps[3] c_ps[5] 
+dump_modify		4 sort id 
+run			0
+
+undump			1
+undump		        4	
+unfix			2
+
+# define variables related to stress
+variable		p11 equal "-pxx/10"
+variable		p22 equal "-pyy/10"
+variable		p33 equal "-pzz/10"
+variable		p12 equal "-pxy/10"
+variable		p23 equal "-pyz/10"
+variable		p13 equal "-pxz/10"
+variable		volM equal (4.04527*4.04527*4.04527/4*(v_Nm))
+variable		ap12 equal ((c_p12)*0.1/(v_volM))
+variable		ap23 equal ((c_p23)*0.1/(v_volM))
+variable		ap13 equal ((c_p13)*0.1/(v_volM))
+
+#apply shear strain ezx deformation, at rate = dx/L_midz/(dtTime)=${disx}/220/(0.002ps)=10^10/s
+reset_timestep 		0
+fix			freeze fixb setforce 0.0 0.0 0.0
+
+variable		disx equal 0.0044  # displacement increment dx
+variable		an loop 50
+label			loopan
+
+displace_atoms 		up move ${disx} 0 0 units box
+displace_atoms		mid ramp x 0.0 ${disx} z ${zbot} ${zup} units box
+#reset_timestep		0
+
+minimize                1e-12 1e-12 10000 10000
+
+variable	 	eezx equal ${an}*${disx}/${zmid}	#shear strain ezx increment = 0.0044/220=2e-5=0.002%
+
+fix			print2 all print 1 "${an} ${eezx} ${ap13} ${p13}" append edgeSS.dat screen no 
+run			0
+unfix			print2
+
+dump			4 mid custom 1 xyz/me${an}.xyz id type x y z c_pea c_csp c_ps[1] c_ps[2] c_ps[3] c_ps[5] 
+dump_modify		4 sort id 
+run			0
+undump			4
+
+next			an
+jump			in.eszx loopan
