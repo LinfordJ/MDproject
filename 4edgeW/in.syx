@@ -64,7 +64,7 @@ fix		output all print 1 "$i ${exy}  ${p12}" append syx.dat screen no
 run		0	
 unfix		output
 
-dump 		1 all custom 1 xyz/syx${i}.xyz id type x y z c_pea 
+dump 		1 all custom 1 syx${i}.xyz id type x y z c_pea 
 dump_modify 	1 sort id
 run 		0
 undump 		1

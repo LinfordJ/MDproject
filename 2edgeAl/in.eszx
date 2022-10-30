@@ -65,7 +65,7 @@ run			0
 
 write_restart           rst.edge
 
-dump			4 mid custom 1 xyz/me0.xyz id type x y z c_pea c_csp c_ps[1] c_ps[2] c_ps[3] c_ps[5] 
+dump			4 mid custom 1 me0.xyz id type x y z c_pea c_csp c_ps[1] c_ps[2] c_ps[3] c_ps[5] 
 dump_modify		4 sort id 
 run			0
 
@@ -105,7 +105,7 @@ fix			print2 all print 1 "${an} ${eezx} ${ap13} ${p13}" append edgeSS.dat screen
 run			0
 unfix			print2
 
-dump			4 mid custom 1 xyz/me${an}.xyz id type x y z c_pea c_csp c_ps[1] c_ps[2] c_ps[3] c_ps[5] 
+dump			4 mid custom 1 me${an}.xyz id type x y z c_pea c_csp c_ps[1] c_ps[2] c_ps[3] c_ps[5] 
 dump_modify		4 sort id 
 run			0
 undump			4
